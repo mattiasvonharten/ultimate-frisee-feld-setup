@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Feld-Setup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg:#10151A;
+    --panel:#1B2228;
+    --panel-2:#212A31;
+    --line:#2A343B;
+    --ink:#F1F4EE;
+    --ink-muted:#8B969C;
+    --accent:#D3FF3D;
+    --accent-ink:#10151A;
+    --warn:#FF6B57;
+    --ok:#4CD97B;
+    --radius-pill: 999px;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top: env(safe-area-inset-top, 0px); height:100%;}
+  html,body{margin:0; height:100%; background:var(--bg);}
+  body{
+    font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    color:var(--ink);
+    display:flex;
+    justify-content:center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 16px;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .wordmark{font-weight:700; font-size:15px; letter-spacing:0.02em; display:flex; align-items:center; gap:8px;}
+  .topbar-actions{display:flex; gap:8px;}
+  .iconbtn{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-family:inherit;
+    font-size:13px;
+    font-weight:500;
+    padding:8px 12px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  main{flex:1; overflow-y:auto; padding:20px 16px calc(24px + env(safe-area-inset-bottom,0px));}
+  h1{font-size:22px; font-weight:700; margin:0 0 6px; letter-spacing:-0.01em;}
+  h2{font-size:15px; font-weight:600; margin:0 0 4px;}
+  p.sub{color:var(--ink-muted); font-size:14px; line-height:1.5; margin:0 0 22px; max-width:34ch;}
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .readout{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    margin-bottom:4px;
+  }
+  .readout .num{font-size:34px; font-weight:700; line-height:1;}
+  .readout .unit{color:var(--ink-muted); font-size:14px;}
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:var(--radius-pill);
+    background:var(--panel-2);
+    color:var(--ink-muted);
+  }
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--ink-muted); flex-shrink:0;}
+  .dot.good{background:var(--ok);}
+  .dot.mid{background:#E8C34C;}
+  .dot.bad{background:var(--warn);}
+  .btn{
+    font-family:inherit;
+    font-size:15px;
+    font-weight:600;
+    border:none;
+    padding:16px 20px;
+    border-radius:var(--radius-pill);
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    cursor:pointer;
+  }
+  .btn-primary{background:var(--accent); color:var(--accent-ink);}
+  .btn-primary:disabled{opacity:0.35;}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
+  .btn-danger{background:transparent; color:var(--warn); border:1px solid var(--line);}
+  .btn-row{display:flex; gap:10px; margin-top:10px;}
+  .btn-row .btn{flex:1;}
+  .stepper{display:flex; align-items:center; gap:10px; margin:14px 0;}
+  .stepper button{
+    width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel-2); color:var(--ink); font-size:18px; font-weight:600; font-family:inherit;
+  }
+  .stepper .val{flex:1; text-align:center; font-size:16px; font-weight:600;}
+  label.field-label{font-size:12px; color:var(--ink-muted); font-weight:600; letter-spacing:0.02em; display:block; margin-bottom:8px;}
+  input[type=range]{
+    width:100%; -webkit-appearance:none; appearance:none;
+    height:4px; border-radius:2px; background:var(--line); outline:none; margin:14px 0 6px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:24px; height:24px; border-radius:50%;
+    background:var(--accent); border:3px solid var(--bg); box-shadow:0 0 0 1px var(--line);
+  }
+  .slider-row{display:flex; justify-content:space-between; font-size:13px; color:var(--ink-muted); margin-bottom:2px;}
+  .slider-row b{color:var(--ink); font-weight:600;}
+  .flip-toggle{
+    display:flex; border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:6px;
+  }
+  .flip-toggle button{
+    flex:1; padding:12px; font-family:inherit; font-weight:600; font-size:14px;
+    background:var(--panel-2); color:var(--ink-muted); border:none;
+  }
+  .flip-toggle button.active{background:var(--accent); color:var(--accent-ink);}
+  .compass-wrap{display:flex; flex-direction:column; align-items:center; padding:10px 0 4px;}
+  .compass-ring{
+    width:150px; height:150px; border-radius:50%; border:1px solid var(--line);
+    position:relative; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle, var(--panel-2) 0%, var(--panel) 70%);
+    margin-bottom:14px;
+  }
+  .compass-arrow{
+    width:0; height:0; position:absolute;
+    border-left:11px solid transparent; border-right:11px solid transparent;
+    border-bottom:58px solid var(--accent);
+    top:18px; left:calc(50% - 11px);
+    transform-origin:50% 74px;
+    transition:transform 0.08s linear;
+  }
+  .compass-n{position:absolute; top:6px; font-size:11px; font-weight:700; color:var(--ink-muted); left:calc(50% - 6px);}
+  .heading-num{font-size:32px; font-weight:700;}
+  svg.sketch{width:100%; display:block; background:var(--panel-2); border-radius:12px;}
+  .points-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px;}
+  .point-chip{
+    border:1px solid var(--line); background:var(--panel-2); color:var(--ink-muted);
+    border-radius:10px; padding:10px 4px; font-family:inherit; font-size:12px; font-weight:600;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  .point-chip .lbl{font-size:11px;}
+  .point-chip.active{border-color:var(--accent); color:var(--ink); box-shadow:0 0 0 1px var(--accent) inset;}
+  .point-chip.done{background:rgba(76,217,123,0.12); color:var(--ok); border-color:var(--ok);}
+  .guide-arrow-wrap{display:flex; flex-direction:column; align-items:center; padding:12px 0 6px;}
+  .guide-arrow{
+    width:0; height:0; border-left:16px solid transparent; border-right:16px solid transparent;
+    border-bottom:84px solid var(--accent); transform-origin:50% 90%;
+    transition:transform 0.08s linear; margin-bottom:10px;
+  }
+  .dist-num{font-size:46px; font-weight:700; line-height:1;}
+  .dist-unit{color:var(--ink-muted); font-size:15px; margin-left:6px;}
+  .bearing-text{color:var(--ink-muted); font-size:13px; margin-top:4px;}
+  .progress-bar{height:5px; background:var(--panel-2); border-radius:3px; overflow:hidden; margin-bottom:16px;}
+  .progress-bar > div{height:100%; background:var(--accent); transition:width 0.2s;}
+  .sheet-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:flex-end; justify-content:center; z-index:20;
+  }
+  .sheet{
+    width:100%; max-width:480px; background:var(--bg); border-top:1px solid var(--line);
+    border-radius:18px 18px 0 0; padding:18px 16px calc(20px + env(safe-area-inset-bottom,0px));
+    max-height:75vh; overflow-y:auto;
+  }
+  .sheet-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .sheet-head h2{margin:0;}
+  .ghost-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px;
+  }
+  .ghost-info .name{font-weight:600; font-size:14px;}
+  .ghost-info .meta{font-size:12px; color:var(--ink-muted); margin-top:2px;}
+  .ghost-actions{display:flex; gap:6px;}
+  .ghost-actions button{
+    font-family:inherit; font-size:12px; font-weight:600; padding:7px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--panel-2); color:var(--ink);
+  }
+  .empty{color:var(--ink-muted); font-size:14px; text-align:center; padding:30px 10px;}
+  #toast{
+    position:fixed; bottom:calc(20px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+    background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:10px 16px; border-radius:10px;
+    font-size:13px; opacity:0; transition:opacity 0.25s; z-index:30; max-width:80%; text-align:center;
+  }
+  #toast.show{opacity:1;}
+  .hint{font-size:12px; color:var(--ink-muted); margin-top:10px; line-height:1.5;}
+  .row-between{display:flex; justify-content:space-between; align-items:center;}
+  .map-wrap{position:relative; margin-bottom:16px;}
+  .map-wrap .leaflet-container{border-radius:14px; border:1px solid var(--line); background:var(--panel-2);}
+  .map-style-toggle{
+    position:absolute; top:10px; right:10px; z-index:500;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    display:flex; font-size:12px; font-weight:600;
+  }
+  .map-style-toggle button{
+    font-family:inherit; border:none; background:transparent; color:var(--ink-muted); padding:7px 10px;
+  }
+  .map-style-toggle button.active{background:var(--accent); color:var(--accent-ink);}
+  .map-note{font-size:11px; color:var(--ink-muted); text-align:center; margin:-8px 0 14px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="wordmark">🥏 FELD-SETUP</div>
+    <div class="topbar-actions">
+      <button class="iconbtn" id="btnGhosts">📁 Ghosts</button>
+    </div>
+  </div>
+  <main id="main"></main>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ---------- Geodäsie-Helfer ---------- */
+const R_EARTH = 6371000;
+const toRad = d => d * Math.PI / 180;
+const toDeg = r => r * 180 / Math.PI;
+
+function distanceM(a, b) {
+  const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
+  const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+  return 2 * R_EARTH * Math.asin(Math.sqrt(s));
+}
+function bearingDeg(a, b) {
+  const phi1 = toRad(a.lat), phi2 = toRad(b.lat), dLon = toRad(b.lon - a.lon);
+  const y = Math.sin(dLon) * Math.cos(phi2);
+  const x = Math.cos(phi1)*Math.sin(phi2) - Math.sin(phi1)*Math.cos(phi2)*Math.cos(dLon);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+function destinationPoint(p, brng, dist) {
+  const delta = dist / R_EARTH, theta = toRad(brng);
+  const phi1 = toRad(p.lat), lam1 = toRad(p.lon);
+  const phi2 = Math.asin(Math.sin(phi1)*Math.cos(delta) + Math.cos(phi1)*Math.sin(delta)*Math.cos(theta));
+  const lam2 = lam1 + Math.atan2(
+    Math.sin(theta)*Math.sin(delta)*Math.cos(phi1),
+    Math.cos(delta) - Math.sin(phi1)*Math.sin(phi2)
+  );
+  return { lat: toDeg(phi2), lon: ((toDeg(lam2) + 540) % 360) - 180 };
+}
+function cardinal(deg) {
+  const dirs = ['N','NO','O','SO','S','SW','W','NW'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+function normDeg(d){ return ((d % 360) + 360) % 360; }
+
+/* ---------- Standardmaße Ultimate Frisbee ---------- */
+const STD_LENGTH = 136; // Spielfeld + 2x Endzone (100 + 2x18)
+const STD_WIDTH  = 37;
+const STD_ENDZONE = 18;
+
+/* ---------- State ---------- */
+const state = {
+  step: 'start', // start | anchor | heading | size | guide
+  anchor: null,
+  currentPos: null,
+  currentHeadingRaw: null,
+  headingOffset: 0,
+  headingDeg: null,
+  lengthPct: 100,
+  widthPct: 100,
+  flip: 1, // 1 = rechts, -1 = links
+  points: [],
+  activeIdx: 0,
+  geoStatus: 'idle', // idle | asking | granted | denied
+  geoStarted: false
+};
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+/* ---------- Geolocation ---------- */
+function startGeo() {
+  if (state.geoStarted) return;
+  if (!navigator.geolocation) { state.geoStatus = 'denied'; toast('GPS auf diesem Gerät nicht verfügbar.'); onTick(); return; }
+  state.geoStarted = true;
+  state.geoStatus = 'asking';
+  navigator.geolocation.watchPosition(
+    pos => {
+      state.geoStatus = 'granted';
+      state.currentPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy };
+      onTick();
+    },
+    err => {
+      if (err.code === 1) { state.geoStatus = 'denied'; }
+      toast('GPS-Fehler: ' + err.message);
+      onTick();
+    },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 }
+  );
+}
+
+/* ---------- Kompass ---------- */
+function startCompass() {
+  function handler(e) {
+    let heading = null;
+    if (typeof e.webkitCompassHeading === 'number') heading = e.webkitCompassHeading;
+    else if (e.alpha !== null && e.alpha !== undefined) heading = normDeg(360 - e.alpha);
+    if (heading === null) return;
+    state.currentHeadingRaw = heading;
+    onTick();
+  }
+  const attach = () => {
+    window.addEventListener('deviceorientationabsolute', handler, true);
+    window.addEventListener('deviceorientation', handler, true);
+  };
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') attach(); }).catch(attach);
+  } else {
+    attach();
+  }
+}
+function effectiveHeading() {
+  if (state.currentHeadingRaw === null) return null;
+  return normDeg(state.currentHeadingRaw + state.headingOffset);
+}
+
+/* ---------- Feldpunkte berechnen ---------- */
+function computeFieldPoints() {
+  const L = STD_LENGTH * (state.lengthPct / 100);
+  const W = STD_WIDTH * (state.widthPct / 100);
+  const E = STD_ENDZONE * (state.lengthPct / 100);
+  const heading = state.headingDeg;
+  const uBrng = normDeg(heading + 90 * state.flip);
+  const P1 = state.anchor;
+  const P2 = destinationPoint(P1, uBrng, W);
+  const P4 = destinationPoint(P1, heading, L);
+  const P3 = destinationPoint(P4, uBrng, W);
+  const G1 = destinationPoint(P1, heading, E);
+  const G2 = destinationPoint(P2, heading, E);
+  const G4 = destinationPoint(P4, normDeg(heading + 180), E);
+  const G3 = destinationPoint(P3, normDeg(heading + 180), E);
+  return [
+    { id: 'A1', label: 'Außenecke A1 (Start)', lat: P1.lat, lon: P1.lon, done: false },
+    { id: 'A2', label: 'Außenecke A2', lat: P2.lat, lon: P2.lon, done: false },
+    { id: 'A3', label: 'Außenecke A3', lat: P3.lat, lon: P3.lon, done: false },
+    { id: 'A4', label: 'Außenecke A4', lat: P4.lat, lon: P4.lon, done: false },
+    { id: 'G1', label: 'Grundlinie Endzone 1 – a', lat: G1.lat, lon: G1.lon, done: false },
+    { id: 'G2', label: 'Grundlinie Endzone 1 – b', lat: G2.lat, lon: G2.lon, done: false },
+    { id: 'G3', label: 'Grundlinie Endzone 2 – a', lat: G3.lat, lon: G3.lon, done: false },
+    { id: 'G4', label: 'Grundlinie Endzone 2 – b', lat: G4.lat, lon: G4.lon, done: false }
+  ];
+}
+
+/* ---------- Skizze (SVG) ---------- */
+function renderSketch() {
+  const heading = state.headingDeg;
+  const pts = computeFieldPoints();
+  const anchor = state.anchor;
+  const projected = pts.map(p => {
+    const brng = bearingDeg(anchor, { lat: p.lat, lon: p.lon });
+    const dist = distanceM(anchor, { lat: p.lat, lon: p.lon });
+    const eff = toRad(normDeg(brng - heading));
+    return { x: Math.sin(eff) * dist, y: -Math.cos(eff) * dist, id: p.id };
+  });
+  projected.push({ x: 0, y: 0, id: 'A1' });
+  const xs = projected.map(p => p.x), ys = projected.map(p => p.y);
+  const pad = 18;
+  const minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad;
+  const minY = Math.min(...ys) - pad, maxY = Math.max(...ys) + pad;
+  const w = maxX - minX, h = maxY - minY;
+  const outer = ['A1','A2','A3','A4'].map(id => projected.find(p => p.id === id));
+  const poly = outer.map(p => `${p.x},${p.y}`).join(' ');
+  const gl1 = projected.find(p=>p.id==='G1'), gl2 = projected.find(p=>p.id==='G2');
+  const gl3 = projected.find(p=>p.id==='G3'), gl4 = projected.find(p=>p.id==='G4');
+  const dot = (p, fill) => `<circle cx="${p.x}" cy="${p.y}" r="3.2" fill="${fill}"/>`;
+  return `<svg class="sketch" viewBox="${minX} ${minY} ${w} ${h}" style="height:${Math.min(260, w>h? 260 : 260*h/w)}px">
+    <polygon points="${poly}" fill="rgba(211,255,61,0.08)" stroke="var(--accent)" stroke-width="1.6"/>
+    <line x1="${gl1.x}" y1="${gl1.y}" x2="${gl2.x}" y2="${gl2.y}" stroke="#8B969C" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="${gl3.x}" y1="${gl3.y}" x2="${gl4.x}" y2="${gl4.y}" stroke="#8B969C" stroke-width="1" stroke-dasharray="3,3"/>
+    ${dot(outer[0], '#D3FF3D')}${dot(outer[1], '#F1F4EE')}${dot(outer[2], '#F1F4EE')}${dot(outer[3], '#F1F4EE')}
+    ${dot(gl1,'#8B969C')}${dot(gl2,'#8B969C')}${dot(gl3,'#8B969C')}${dot(gl4,'#8B969C')}
+    <line x1="0" y1="0" x2="0" y2="${minY+4}" stroke="#8B969C" stroke-width="0.8"/>
+    <text x="4" y="${minY+12}" fill="#8B969C" font-size="9" font-family="Space Grotesk">Blickrichtung</text>
+  </svg>`;
+}
+
+/* ---------- Kartenmodul (Leaflet, nur mit echten Kacheln außerhalb der Claude-Vorschau) ---------- */
+let mapInst = null;
+let mapLayers = {};
+let mapCenteredOnce = false;
+let mapStyle = 'sat'; // sat | street
+
+function tileLayer(style) {
+  if (style === 'sat') {
+    return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 20, attribution: '&copy; Esri'
+    });
+  }
+  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap-Mitwirkende'
+  });
+}
+
+function destroyMap() {
+  if (mapInst) { mapInst.remove(); mapInst = null; mapLayers = {}; }
+}
+
+function initMap(containerId, centerLatLon, zoom) {
+  destroyMap();
+  mapCenteredOnce = false;
+  const el = document.getElementById(containerId);
+  if (!el || typeof L === 'undefined') return;
+  mapInst = L.map(containerId, { zoomControl: true, attributionControl: true });
+  mapLayers.base = tileLayer(mapStyle);
+  mapLayers.base.addTo(mapInst);
+  mapInst.setView(centerLatLon, zoom);
+  addMapStyleToggle(el.parentElement);
+}
+
+function addMapStyleToggle(wrapEl) {
+  if (!wrapEl || wrapEl.querySelector('.map-style-toggle')) return;
+  const t = document.createElement('div');
+  t.className = 'map-style-toggle';
+  t.innerHTML = `<button data-style="sat">Satellit</button><button data-style="street">Straße</button>`;
+  wrapEl.appendChild(t);
+  t.querySelectorAll('button').forEach(b => {
+    b.classList.toggle('active', b.dataset.style === mapStyle);
+    b.onclick = () => {
+      mapStyle = b.dataset.style;
+      t.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.style === mapStyle));
+      if (mapInst) { mapInst.removeLayer(mapLayers.base); mapLayers.base = tileLayer(mapStyle); mapLayers.base.addTo(mapInst); }
+    };
+  });
+}
+
+function liveIcon(color) {
+  return L.divIcon({ className: '', html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2px solid #10151A;box-shadow:0 0 0 2px ${color}55;"></div>`, iconSize:[16,16], iconAnchor:[8,8] });
+}
+function labelIcon(text, bg) {
+  return L.divIcon({ className:'', html:`<div style="background:${bg};color:#10151A;font-family:'Space Grotesk';font-weight:700;font-size:11px;padding:3px 6px;border-radius:6px;white-space:nowrap;border:1px solid #10151A;">${text}</div>`, iconSize:null, iconAnchor:[10,10] });
+}
+
+function updateLiveMarker() {
+  if (!mapInst || !state.currentPos) return;
+  const ll = [state.currentPos.lat, state.currentPos.lon];
+  if (!mapLayers.live) {
+    mapLayers.live = L.marker(ll, { icon: liveIcon('#D3FF3D'), zIndexOffset: 1000 }).addTo(mapInst);
+    mapLayers.liveAcc = L.circle(ll, { radius: state.currentPos.acc, color:'#D3FF3D', weight:1, fillOpacity:0.08 }).addTo(mapInst);
+  } else {
+    mapLayers.live.setLatLng(ll);
+    mapLayers.liveAcc.setLatLng(ll);
+    mapLayers.liveAcc.setRadius(state.currentPos.acc);
+  }
+  if (!mapCenteredOnce) { mapInst.setView(ll, 19); mapCenteredOnce = true; }
+}
+
+function renderMapAnchor() {
+  const center = state.currentPos ? [state.currentPos.lat, state.currentPos.lon] : [51.1657, 10.4515];
+  initMap('mapAnchor', center, state.currentPos ? 19 : 6);
+  updateLiveMarker();
+}
+
+function renderMapSize() {
+  const pts = computeFieldPoints();
+  const outer = ['A1','A2','A3','A4'].map(id => pts.find(p => p.id === id));
+  const center = [state.anchor.lat, state.anchor.lon];
+  initMap('mapSize', center, 18);
+  const poly = L.polygon(outer.map(p => [p.lat, p.lon]), { color:'#D3FF3D', weight:2, fillColor:'#D3FF3D', fillOpacity:0.1 }).addTo(mapInst);
+  mapLayers.poly = poly;
+  const gl1 = pts.find(p=>p.id==='G1'), gl2 = pts.find(p=>p.id==='G2');
+  const gl3 = pts.find(p=>p.id==='G3'), gl4 = pts.find(p=>p.id==='G4');
+  L.polyline([[gl1.lat,gl1.lon],[gl2.lat,gl2.lon]], { color:'#8B969C', weight:1.5, dashArray:'4,4' }).addTo(mapInst);
+  L.polyline([[gl3.lat,gl3.lon],[gl4.lat,gl4.lon]], { color:'#8B969C', weight:1.5, dashArray:'4,4' }).addTo(mapInst);
+  L.marker([state.anchor.lat, state.anchor.lon], { icon: labelIcon('A1 · Start', '#D3FF3D') }).addTo(mapInst);
+  mapInst.fitBounds(poly.getBounds(), { padding: [24,24] });
+  updateLiveMarker();
+}
+function refreshMapSizeOverlay() {
+  if (!mapInst) return;
+  renderMapSize();
+}
+
+function renderMapGuide() {
+  const center = [state.anchor.lat, state.anchor.lon];
+  initMap('mapGuide', center, 18);
+  state.points.forEach((p, i) => {
+    const color = p.done ? '#4CD97B' : (i === state.activeIdx ? '#D3FF3D' : '#8B969C');
+    L.marker([p.lat, p.lon], { icon: labelIcon(p.id, color) }).addTo(mapInst);
+  });
+  const bounds = L.latLngBounds(state.points.map(p => [p.lat, p.lon]));
+  mapInst.fitBounds(bounds, { padding: [30,30] });
+  updateLiveMarker();
+}
+
+
+const GHOST_KEY = 'uf_feld_ghosts_v1';
+function loadGhosts() { try { return JSON.parse(localStorage.getItem(GHOST_KEY) || '[]'); } catch(e){ return []; } }
+function saveGhostsArr(arr) { try { localStorage.setItem(GHOST_KEY, JSON.stringify(arr)); } catch(e){ toast('Konnte nicht lokal speichern.'); } }
+function saveCurrentAsGhost() {
+  const name = prompt('Name für dieses Setup (z.B. "Wiese Nord"):');
+  if (!name) return;
+  const arr = loadGhosts();
+  arr.unshift({
+    name, savedAt: Date.now(),
+    anchor: state.anchor, headingDeg: state.headingDeg,
+    lengthPct: state.lengthPct, widthPct: state.widthPct, flip: state.flip
+  });
+  saveGhostsArr(arr);
+  toast('Ghost gespeichert: ' + name);
+  renderGhostSheet();
+}
+function loadGhost(idx) {
+  const arr = loadGhosts();
+  const g = arr[idx];
+  if (!g) return;
+  state.anchor = g.anchor;
+  state.headingDeg = g.headingDeg;
+  state.lengthPct = g.lengthPct;
+  state.widthPct = g.widthPct;
+  state.flip = g.flip;
+  state.step = 'size';
+  closeGhostSheet();
+  render();
+  toast('Ghost geladen: ' + g.name);
+}
+function deleteGhost(idx) {
+  const arr = loadGhosts();
+  arr.splice(idx, 1);
+  saveGhostsArr(arr);
+  renderGhostSheet();
+}
+
+/* ---------- Ghost Sheet ---------- */
+function renderGhostSheet() {
+  const arr = loadGhosts();
+  const canSave = state.anchor && state.headingDeg !== null;
+  let html = `<div class="sheet-head"><h2>Ghosts</h2><button class="iconbtn" id="btnCloseGhosts">Schließen</button></div>`;
+  if (canSave) {
+    html += `<button class="btn btn-primary" id="btnSaveGhost" style="margin-bottom:16px;">💾 Aktuelles Setup speichern</button>`;
+  } else {
+    html += `<p class="hint" style="margin-bottom:16px;">Lege erst einen Startpunkt &amp; eine Richtung fest, um ein Setup zu speichern.</p>`;
+  }
+  if (arr.length === 0) {
+    html += `<div class="empty">Noch keine Ghosts gespeichert.<br>Sie bleiben nur auf diesem Gerät.</div>`;
+  } else {
+    arr.forEach((g, i) => {
+      const d = new Date(g.savedAt);
+      const dateStr = d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+      html += `<div class="ghost-item">
+        <div class="ghost-info"><div class="name">${escapeHtml(g.name)}</div><div class="meta">${dateStr} · L ${g.lengthPct}% · B ${g.widthPct}%</div></div>
+        <div class="ghost-actions">
+          <button data-load="${i}">Laden</button>
+          <button data-del="${i}" style="color:var(--warn);">Löschen</button>
+        </div>
+      </div>`;
+    });
+  }
+  let overlay = document.getElementById('ghostOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'sheet-overlay';
+    overlay.id = 'ghostOverlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `<div class="sheet">${html}</div>`;
+  overlay.style.display = 'flex';
+  document.getElementById('btnCloseGhosts').onclick = closeGhostSheet;
+  overlay.onclick = (e) => { if (e.target === overlay) closeGhostSheet(); };
+  const saveBtn = document.getElementById('btnSaveGhost');
+  if (saveBtn) saveBtn.onclick = saveCurrentAsGhost;
+  overlay.querySelectorAll('[data-load]').forEach(b => b.onclick = () => loadGhost(+b.dataset.load));
+  overlay.querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteGhost(+b.dataset.del));
+}
+function closeGhostSheet() {
+  const overlay = document.getElementById('ghostOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- Screens ---------- */
+function render() {
+  const main = document.getElementById('main');
+  if (state.step === 'start') main.innerHTML = screenStart();
+  else if (state.step === 'anchor') main.innerHTML = screenAnchor();
+  else if (state.step === 'heading') main.innerHTML = screenHeading();
+  else if (state.step === 'size') main.innerHTML = screenSize();
+  else if (state.step === 'guide') main.innerHTML = screenGuide();
+  bindScreenEvents();
+  if (state.step === 'anchor') renderMapAnchor();
+  else if (state.step === 'size') renderMapSize();
+  else if (state.step === 'guide') renderMapGuide();
+  else destroyMap();
+  onTick();
+}
+
+function screenStart() {
+  return `
+    <h1>Standort &amp; Kompass freigeben</h1>
+    <p class="sub">Diese App braucht Zugriff auf GPS und den Kompass deines Handys, um dich zu den Feldpunkten zu führen.</p>
+    <div class="card" id="startStatusCard">
+      <span class="badge" id="startBadge"><span class="dot" id="startDot"></span><span id="startText">Noch nicht angefragt</span></span>
+    </div>
+    <button class="btn btn-primary" id="btnRequestPerms">📍 Standort &amp; Kompass aktivieren</button>
+    <p class="hint" id="startHint"></p>
+  `;
+}
+
+function screenAnchor() {
+  return `
+    <h1>Startecke setzen</h1>
+    <p class="sub">Geh zu einer äußeren Ecke des Feldes. Sobald die GPS-Position steht, übernimm sie als Ausgangspunkt.</p>
+    <div class="map-wrap"><div id="mapAnchor" style="height:220px;"></div></div>
+    <p class="map-note">Kartenkacheln funktionieren nur, wenn diese Seite selbst gehostet ist (nicht in der Claude-Vorschau).</p>
+    <div class="card">
+      <span class="badge" id="accBadge"><span class="dot" id="accDot"></span><span id="accText">Suche GPS…</span></span>
+      <div class="readout" style="margin-top:14px;">
+        <span class="num" id="accNum">–</span><span class="unit">m Genauigkeit</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btnSetAnchor">📍 Position als Startecke A1 übernehmen</button>
+    <p class="hint">Für gute Ergebnisse: freies Feld, wenige Sekunden warten, bis die Genauigkeit unter ca. 8&nbsp;m liegt.</p>
+  `;
+}
+
+function screenHeading() {
+  return `
+    <h1>Seitenlinie ausrichten</h1>
+    <p class="sub">Halte das Handy flach vor dich und ziel entlang der geplanten Seitenlinie – in die Richtung, in der das Feld von A1 aus verlaufen soll.</p>
+    <div class="card">
+      <div class="compass-wrap">
+        <div class="compass-ring">
+          <span class="compass-n">N</span>
+          <div class="compass-arrow" id="headingArrow"></div>
+        </div>
+        <div class="heading-num" id="headingNum">–°</div>
+      </div>
+      <div class="stepper">
+        <button id="calMinus">–</button>
+        <div class="val">Kalibrierung: <span id="calVal">0°</span></div>
+        <button id="calPlus">+</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btnSetHeading">🧭 Richtung übernehmen</button>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btnBackToAnchor">⬅ Zurück</button>
+    </div>
+    <p class="hint">Kein Kompass am Gerät? Dann bleibt der Wert bei 0° stehen – nutze in dem Fall den Kompass-App-Wert deines Handys und stelle ihn über die Kalibrierung ein.</p>
+  `;
+}
+
+function screenSize() {
+  const L = (STD_LENGTH * state.lengthPct / 100).toFixed(1);
+  const W = (STD_WIDTH * state.widthPct / 100).toFixed(1);
+  return `
+    <h1>Größe &amp; Seite</h1>
+    <p class="sub">Standardmaße sind voreingestellt. Passe sie bei Bedarf an und lege fest, auf welcher Seite der Zielrichtung das Feld liegt.</p>
+    <div class="card">
+      <div class="slider-row"><span>Länge</span><b id="lenVal">${state.lengthPct}% · ${L} m</b></div>
+      <input type="range" min="50" max="150" step="1" value="${state.lengthPct}" id="lenSlider">
+      <div class="slider-row" style="margin-top:14px;"><span>Breite</span><b id="widVal">${state.widthPct}% · ${W} m</b></div>
+      <input type="range" min="50" max="150" step="1" value="${state.widthPct}" id="widSlider">
+    </div>
+    <div class="card">
+      <label class="field-label">Feld liegt, von A1 in Zielrichtung geblickt:</label>
+      <div class="flip-toggle">
+        <button id="flipRight" class="${state.flip===1?'active':''}">rechts</button>
+        <button id="flipLeft" class="${state.flip===-1?'active':''}">links</button>
+      </div>
+    </div>
+    <div class="map-wrap"><div id="mapSize" style="height:240px;"></div></div>
+    <p class="map-note">Ghost live auf echter Karte (nur bei selbst gehosteter Version sichtbar)</p>
+    <div class="card" id="sketchCard">${renderSketch()}</div>
+    <button class="btn btn-primary" id="btnConfirm">✅ Bestätigen &amp; Punkte berechnen</button>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btnBackToHeading">⬅ Zurück</button>
+    </div>
+  `;
+}
+
+function screenGuide() {
+  const done = state.points.filter(p => p.done).length;
+  const chips = state.points.map((p, i) => `
+    <button class="point-chip ${i===state.activeIdx?'active':''} ${p.done?'done':''}" data-idx="${i}">
+      <span>${p.done?'✓':i+1}</span><span class="lbl">${p.id}</span>
+    </button>`).join('');
+  return `
+    <div class="row-between" style="margin-bottom:10px;">
+      <h1 style="margin-bottom:0;">Zum Punkt führen</h1>
+      <span class="badge"><span class="dot" id="guideAccDot"></span><span id="guideAccText">–</span></span>
+    </div>
+    <div class="progress-bar"><div style="width:${done/8*100}%"></div></div>
+    <div class="map-wrap"><div id="mapGuide" style="height:220px;"></div></div>
+    <div class="points-grid">${chips}</div>
+    <div class="card">
+      <p class="sub" style="margin-bottom:8px; max-width:none;" id="activeLabel"></p>
+      <div class="guide-arrow-wrap">
+        <div class="guide-arrow" id="guideArrow"></div>
+        <div><span class="dist-num" id="guideDist">–</span><span class="dist-unit">m</span></div>
+        <div class="bearing-text" id="guideBearing"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btnMarkDone">✓ Als gesetzt markieren</button>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btnNextOpen">↻ Nächster offener Punkt</button>
+      <button class="btn btn-danger" id="btnReset">🏁 Neues Feld</button>
+    </div>
+  `;
+}
+
+/* ---------- Events pro Screen ---------- */
+function bindScreenEvents() {
+  if (state.step === 'start') {
+    document.getElementById('btnRequestPerms').onclick = () => {
+      startGeo();
+      startCompass();
+      onTick();
+    };
+  }
+  if (state.step === 'anchor') {
+    document.getElementById('btnSetAnchor').onclick = () => {
+      if (!state.currentPos) { toast('Noch keine GPS-Position empfangen.'); return; }
+      state.anchor = { lat: state.currentPos.lat, lon: state.currentPos.lon };
+      state.step = 'heading';
+      render();
+    };
+  }
+  if (state.step === 'heading') {
+    document.getElementById('btnBackToAnchor').onclick = () => { state.step = 'anchor'; render(); };
+    document.getElementById('calMinus').onclick = () => { state.headingOffset -= 1; onTick(); };
+    document.getElementById('calPlus').onclick = () => { state.headingOffset += 1; onTick(); };
+    document.getElementById('btnSetHeading').onclick = () => {
+      const h = effectiveHeading();
+      if (h === null) { toast('Kein Kompasswert verfügbar.'); return; }
+      state.headingDeg = h;
+      state.step = 'size';
+      render();
+    };
+  }
+  if (state.step === 'size') {
+    const lenSlider = document.getElementById('lenSlider');
+    const widSlider = document.getElementById('widSlider');
+    lenSlider.oninput = () => {
+      state.lengthPct = +lenSlider.value;
+      document.getElementById('lenVal').textContent = state.lengthPct + '% · ' + (STD_LENGTH*state.lengthPct/100).toFixed(1) + ' m';
+      document.getElementById('sketchCard').innerHTML = renderSketch();
+      refreshMapSizeOverlay();
+    };
+    widSlider.oninput = () => {
+      state.widthPct = +widSlider.value;
+      document.getElementById('widVal').textContent = state.widthPct + '% · ' + (STD_WIDTH*state.widthPct/100).toFixed(1) + ' m';
+      document.getElementById('sketchCard').innerHTML = renderSketch();
+      refreshMapSizeOverlay();
+    };
+    document.getElementById('flipRight').onclick = () => { state.flip = 1; renderSizeFlipUI(); };
+    document.getElementById('flipLeft').onclick = () => { state.flip = -1; renderSizeFlipUI(); };
+    document.getElementById('btnBackToHeading').onclick = () => { state.step = 'heading'; render(); };
+    document.getElementById('btnConfirm').onclick = () => {
+      state.points = computeFieldPoints();
+      state.activeIdx = 0;
+      state.step = 'guide';
+      render();
+    };
+  }
+  if (state.step === 'guide') {
+    document.querySelectorAll('.point-chip').forEach(chip => {
+      chip.onclick = () => { state.activeIdx = +chip.dataset.idx; render(); };
+    });
+    document.getElementById('btnMarkDone').onclick = () => {
+      state.points[state.activeIdx].done = true;
+      const nextOpen = state.points.findIndex(p => !p.done);
+      if (nextOpen !== -1) state.activeIdx = nextOpen;
+      render();
+    };
+    document.getElementById('btnNextOpen').onclick = () => {
+      const nextOpen = state.points.findIndex((p,i) => !p.done && i !== state.activeIdx);
+      if (nextOpen === -1) { toast('Alle Punkte gesetzt! 🥏'); return; }
+      state.activeIdx = nextOpen;
+      render();
+    };
+    document.getElementById('btnReset').onclick = () => {
+      if (!confirm('Neues Feld starten? Der aktuelle Fortschritt geht verloren.')) return;
+      Object.assign(state, { step:'anchor', anchor:null, headingDeg:null, lengthPct:100, widthPct:100, flip:1, points:[], activeIdx:0 });
+      render();
+    };
+  }
+}
+function renderSizeFlipUI() {
+  document.getElementById('flipRight').className = state.flip===1 ? 'active' : '';
+  document.getElementById('flipLeft').className = state.flip===-1 ? 'active' : '';
+  document.getElementById('sketchCard').innerHTML = renderSketch();
+  refreshMapSizeOverlay();
+}
+
+/* ---------- Live-Updates (GPS/Kompass Tick) ---------- */
+function onTick() {
+  if (mapInst && (state.step === 'anchor' || state.step === 'size' || state.step === 'guide')) {
+    updateLiveMarker();
+  }
+  if (state.step === 'start') {
+    const dot = document.getElementById('startDot');
+    const txt = document.getElementById('startText');
+    const hint = document.getElementById('startHint');
+    if (dot && txt) {
+      if (state.geoStatus === 'granted') {
+        dot.className = 'dot good'; txt.textContent = 'Freigegeben – es geht weiter…';
+        setTimeout(() => { if (state.step === 'start') { state.step = 'anchor'; render(); } }, 500);
+      } else if (state.geoStatus === 'asking') {
+        dot.className = 'dot mid'; txt.textContent = 'Warte auf Freigabe…';
+        if (hint) hint.textContent = 'Falls kein Pop-up erscheint, ist der Standortzugriff evtl. schon blockiert – siehe unten.';
+      } else if (state.geoStatus === 'denied') {
+        dot.className = 'dot bad'; txt.textContent = 'Zugriff verweigert';
+        if (hint) hint.textContent = 'Öffne die Browser- bzw. App-Einstellungen → Berechtigungen → Standort → Zulassen, und tippe dann erneut auf den Button.';
+      } else {
+        dot.className = 'dot'; txt.textContent = 'Noch nicht angefragt';
+      }
+    }
+  }
+  if (state.step === 'anchor' && state.currentPos) {
+    const acc = state.currentPos.acc;
+    document.getElementById('accNum').textContent = acc.toFixed(1);
+    const dot = document.getElementById('accDot');
+    const txt = document.getElementById('accText');
+    if (acc < 6) { dot.className = 'dot good'; txt.textContent = 'Gute Genauigkeit'; }
+    else if (acc < 15) { dot.className = 'dot mid'; txt.textContent = 'Mittlere Genauigkeit'; }
+    else { dot.className = 'dot bad'; txt.textContent = 'Ungenau – kurz warten'; }
+  }
+  if (state.step === 'heading') {
+    const h = effectiveHeading();
+    const calValEl = document.getElementById('calVal');
+    if (calValEl) calValEl.textContent = (state.headingOffset>0?'+':'') + state.headingOffset + '°';
+    if (h !== null) {
+      const arrow = document.getElementById('headingArrow');
+      if (arrow) arrow.style.transform = `rotate(${h}deg)`;
+      const num = document.getElementById('headingNum');
+      if (num) num.textContent = h.toFixed(0) + '° ' + cardinal(h);
+    }
+  }
+  if (state.step === 'guide' && state.points.length) {
+    if (state.currentPos) {
+      const dot = document.getElementById('guideAccDot');
+      const txt = document.getElementById('guideAccText');
+      if (dot && txt) {
+        const acc = state.currentPos.acc;
+        dot.className = 'dot ' + (acc<6?'good':acc<15?'mid':'bad');
+        txt.textContent = '±' + acc.toFixed(1) + ' m';
+      }
+    }
+    const target = state.points[state.activeIdx];
+    const lbl = document.getElementById('activeLabel');
+    if (lbl) lbl.textContent = target.label;
+    if (state.currentPos && target) {
+      const dist = distanceM(state.currentPos, target);
+      const brng = bearingDeg(state.currentPos, target);
+      const distEl = document.getElementById('guideDist');
+      if (distEl) distEl.textContent = dist < 10 ? dist.toFixed(1) : dist.toFixed(0);
+      const bEl = document.getElementById('guideBearing');
+      if (bEl) bEl.textContent = 'Zielrichtung ' + brng.toFixed(0) + '° ' + cardinal(brng);
+      const heading = effectiveHeading();
+      const arrow = document.getElementById('guideArrow');
+      if (arrow && heading !== null) {
+        const rel = normDeg(brng - heading);
+        arrow.style.transform = `rotate(${rel}deg)`;
+      }
+    }
+  }
+}
+
+/* ---------- Ghost-Button ---------- */
+document.getElementById('btnGhosts').onclick = renderGhostSheet;
+
+/* ---------- Init ---------- */
+render();
+</script>
+</body>
+</html>
