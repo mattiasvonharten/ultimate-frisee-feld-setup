@@ -94,6 +94,7 @@
     <div class="topbar-actions"><button class="iconbtn" id="btnGhosts">📁 Ghosts</button></div>
   </div>
   <main id="main"></main>
+  <div style="text-align:center; font-size:10px; color:var(--ink-muted); padding:4px 0 8px; flex-shrink:0;">von Mattias von Harten</div>
 </div>
 <div id="toast"></div>
 
@@ -123,14 +124,14 @@ function destinationPoint(p, brng, dist) {
 function cardinal(deg) { const dirs = ['N','NO','O','SO','S','SW','W','NW']; return dirs[Math.round(deg / 45) % 8]; }
 function normDeg(d){ return ((d % 360) + 360) % 360; }
 
-/* ---------- Standardmaße ---------- */
-const STD_LENGTH = 136, STD_WIDTH = 37, STD_ENDZONE = 18;
+/* ---------- Standardmaße (WFDF): Gesamtlänge außen 100 m, davon je 18 m Endzone, 37 m Breite ---------- */
+const STD_LENGTH = 100, STD_WIDTH = 37, STD_ENDZONE = 18;
 
 /* ---------- State ---------- */
 const state = {
   step: 'start', // start | position | guide
   anchor: null, headingDeg: null,
-  markerA: null, markerC: null, positionInitialized: false,
+  markerA: null, markerC: null, liveHeading: 0, positionInitialized: false,
   currentPos: null, currentHeadingRaw: null, headingOffset: 0,
   lengthPct: 100, widthPct: 100, flip: 1,
   points: [], activeIdx: 0,
@@ -185,6 +186,32 @@ function effectiveHeading() {
   return normDeg(state.currentHeadingRaw + state.headingOffset);
 }
 
+function nearestNeighborOrder(pts, fromPos) {
+  const remaining = pts.slice();
+  const ordered = [];
+  let current = fromPos;
+  while (remaining.length) {
+    let bestIdx = 0, bestDist = Infinity;
+    remaining.forEach((p, i) => { const d = distanceM(current, p); if (d < bestDist) { bestDist = d; bestIdx = i; } });
+    const next = remaining.splice(bestIdx, 1)[0];
+    ordered.push(next);
+    current = next;
+  }
+  return ordered;
+}
+function orderPointsForWalking(points, startPos) {
+  const nearIds = ['A1', 'A2', 'G1', 'G2'];
+  const groupNear = points.filter(p => nearIds.includes(p.id));
+  const groupFar = points.filter(p => !nearIds.includes(p.id));
+  const minNear = Math.min(...groupNear.map(p => distanceM(startPos, p)));
+  const minFar = Math.min(...groupFar.map(p => distanceM(startPos, p)));
+  const firstGroup = minNear <= minFar ? groupNear : groupFar;
+  const secondGroup = minNear <= minFar ? groupFar : groupNear;
+  const orderedFirst = nearestNeighborOrder(firstGroup, startPos);
+  const orderedSecond = nearestNeighborOrder(secondGroup, orderedFirst[orderedFirst.length - 1]);
+  return [...orderedFirst, ...orderedSecond];
+}
+
 /* ---------- Feldpunkte (generisch, dann für confirmed state) ---------- */
 function computePointsFor(anchor, heading, lengthPct, widthPct, flip) {
   const L = STD_LENGTH * (lengthPct / 100);
@@ -214,9 +241,8 @@ function computeFieldPoints() {
   return computePointsFor(state.anchor, state.headingDeg, state.lengthPct, state.widthPct, state.flip);
 }
 function livePoints() {
-  if (!state.markerA || !state.markerC) return [];
-  const heading = bearingDeg(state.markerA, state.markerC);
-  return computePointsFor(state.markerA, heading, state.lengthPct, state.widthPct, state.flip);
+  if (!state.markerA) return [];
+  return computePointsFor(state.markerA, state.liveHeading, state.lengthPct, state.widthPct, state.flip);
 }
 
 /* ---------- Skizze (SVG, funktioniert überall inkl. Claude-Vorschau) ---------- */
@@ -224,7 +250,7 @@ function renderSketch() {
   const pts = livePoints();
   if (!pts.length) return '';
   const anchor = state.markerA;
-  const heading = bearingDeg(state.markerA, state.markerC);
+  const heading = state.liveHeading;
   const projected = pts.map(p => {
     const brng = bearingDeg(anchor, p);
     const dist = distanceM(anchor, p);
@@ -304,7 +330,8 @@ function ensurePositionDefaults() {
   if (state.positionInitialized) return;
   state.markerA = state.currentPos ? { lat: state.currentPos.lat, lon: state.currentPos.lon } : { lat: 51.1657, lon: 10.4515 };
   const h = effectiveHeading();
-  state.markerC = destinationPoint(state.markerA, h !== null ? h : 0, 100);
+  state.liveHeading = h !== null ? h : 0;
+  state.markerC = destinationPoint(state.markerA, state.liveHeading, 100);
   state.positionInitialized = true;
 }
 function renderMapPosition() {
@@ -319,9 +346,9 @@ function renderMapPosition() {
   mapLayers.markerA = L.marker([state.markerA.lat, state.markerA.lon], { icon: dragHandleIcon('A', '#D3FF3D'), draggable: true, autoPan: true, zIndexOffset: 950 }).addTo(mapInst);
   mapLayers.markerC = L.marker([state.markerC.lat, state.markerC.lon], { icon: dragHandleIcon('C', '#F1F4EE'), draggable: true, autoPan: true, zIndexOffset: 940 }).addTo(mapInst);
 
-  mapLayers.markerA.on('drag', () => { const ll = mapLayers.markerA.getLatLng(); state.markerA = { lat: ll.lat, lon: ll.lng }; updatePositionOverlay(); });
-  mapLayers.markerC.on('drag', () => { const ll = mapLayers.markerC.getLatLng(); state.markerC = { lat: ll.lat, lon: ll.lng }; updatePositionOverlay(); });
-  mapLayers.markerC.on('dragend', () => { snapMarkerCToCorner(); updatePositionOverlay(); });
+  mapLayers.markerA.on('drag', () => { const ll = mapLayers.markerA.getLatLng(); state.markerA = { lat: ll.lat, lon: ll.lng }; updatePositionOverlay('A'); });
+  mapLayers.markerC.on('drag', () => { const ll = mapLayers.markerC.getLatLng(); state.liveHeading = bearingDeg(state.markerA, { lat: ll.lat, lon: ll.lng }); updatePositionOverlay('C'); });
+  mapLayers.markerC.on('dragend', () => { updatePositionOverlay(); });
 
   updatePositionOverlay();
   const bounds = L.latLngBounds([[state.markerA.lat, state.markerA.lon]]);
@@ -331,14 +358,13 @@ function renderMapPosition() {
   updateLiveMarker();
 }
 function snapMarkerCToCorner() {
-  const heading = bearingDeg(state.markerA, state.markerC);
-  const pts = computePointsFor(state.markerA, heading, state.lengthPct, state.widthPct, state.flip);
+  const pts = computePointsFor(state.markerA, state.liveHeading, state.lengthPct, state.widthPct, state.flip);
   const p3 = pts.find(p => p.id === 'A3');
   state.markerC = { lat: p3.lat, lon: p3.lon };
   if (mapLayers.markerC) mapLayers.markerC.setLatLng([p3.lat, p3.lon]);
 }
-function updatePositionOverlay() {
-  if (!mapInst || !state.markerA || !state.markerC) return;
+function updatePositionOverlay(draggingWho) {
+  if (!mapInst || !state.markerA) return;
   const pts = livePoints();
   const outer = ['A1','A2','A3','A4'].map(id => pts.find(p => p.id === id));
   mapLayers.poly.setLatLngs(outer.map(p => [p.lat, p.lon]));
@@ -346,10 +372,12 @@ function updatePositionOverlay() {
   const g3 = pts.find(p=>p.id==='G3'), g4 = pts.find(p=>p.id==='G4');
   mapLayers.gl1.setLatLngs([[g1.lat,g1.lon],[g2.lat,g2.lon]]);
   mapLayers.gl2.setLatLngs([[g3.lat,g3.lon],[g4.lat,g4.lon]]);
+  if (draggingWho !== 'A' && mapLayers.markerA) mapLayers.markerA.setLatLng([state.markerA.lat, state.markerA.lon]);
+  if (draggingWho !== 'C') snapMarkerCToCorner();
   const sketchCard = document.getElementById('sketchCard');
   if (sketchCard) sketchCard.innerHTML = renderSketch();
   const headingReadout = document.getElementById('liveHeadingReadout');
-  if (headingReadout) headingReadout.textContent = bearingDeg(state.markerA, state.markerC).toFixed(0) + '°';
+  if (headingReadout) headingReadout.textContent = state.liveHeading.toFixed(0) + '°';
 }
 function updateAimRay() {
   if (!mapInst || !mapLayers.aimRay || !state.markerA) return;
@@ -387,7 +415,7 @@ function saveGhostsArr(arr) { try { localStorage.setItem(GHOST_KEY, JSON.stringi
 function saveCurrentAsGhost() {
   const name = prompt('Name für dieses Setup (z.B. "Wiese Nord"):');
   if (!name) return;
-  const heading = state.step === 'guide' ? state.headingDeg : bearingDeg(state.markerA, state.markerC);
+  const heading = state.step === 'guide' ? state.headingDeg : state.liveHeading;
   const anchor = state.step === 'guide' ? state.anchor : state.markerA;
   const arr = loadGhosts();
   arr.unshift({ name, savedAt: Date.now(), anchor, headingDeg: heading, lengthPct: state.lengthPct, widthPct: state.widthPct, flip: state.flip });
@@ -398,6 +426,7 @@ function saveCurrentAsGhost() {
 function loadGhost(idx) {
   const arr = loadGhosts(); const g = arr[idx]; if (!g) return;
   state.markerA = { lat: g.anchor.lat, lon: g.anchor.lon };
+  state.liveHeading = g.headingDeg;
   state.markerC = destinationPoint(state.markerA, g.headingDeg, 100);
   state.lengthPct = g.lengthPct; state.widthPct = g.widthPct; state.flip = g.flip;
   state.positionInitialized = true;
@@ -474,9 +503,9 @@ function screenPosition() {
     <div class="card">
       <div class="row-between" style="margin-bottom:2px;"><label class="field-label" style="margin-bottom:0;">Aktuelle Ausrichtung (A→C)</label><span id="liveHeadingReadout" style="font-weight:700;">–</span></div>
       <div class="slider-row" style="margin-top:14px;"><span>Länge</span><b id="lenVal">${state.lengthPct}% · ${L_} m</b></div>
-      <input type="range" min="50" max="150" step="1" value="${state.lengthPct}" id="lenSlider">
+      <input type="range" min="50" max="100" step="1" value="${state.lengthPct}" id="lenSlider">
       <div class="slider-row" style="margin-top:14px;"><span>Breite</span><b id="widVal">${state.widthPct}% · ${W_} m</b></div>
-      <input type="range" min="50" max="150" step="1" value="${state.widthPct}" id="widSlider">
+      <input type="range" min="50" max="100" step="1" value="${state.widthPct}" id="widSlider">
     </div>
     <div class="card">
       <label class="field-label">Feld liegt, von A in Richtung C geblickt:</label>
@@ -543,8 +572,9 @@ function bindScreenEvents() {
     document.getElementById('flipLeft').onclick = () => { state.flip = -1; refreshFlipUI(); };
     document.getElementById('btnConfirm').onclick = () => {
       state.anchor = { ...state.markerA };
-      state.headingDeg = bearingDeg(state.markerA, state.markerC);
-      state.points = computeFieldPoints();
+      state.headingDeg = state.liveHeading;
+      const startPos = state.currentPos || state.anchor;
+      state.points = orderPointsForWalking(computeFieldPoints(), startPos);
       state.activeIdx = 0;
       state.step = 'guide';
       render();
@@ -565,7 +595,7 @@ function bindScreenEvents() {
     };
     document.getElementById('btnReset').onclick = () => {
       if (!confirm('Neues Feld starten? Der aktuelle Fortschritt geht verloren.')) return;
-      Object.assign(state, { step:'position', anchor:null, headingDeg:null, markerA:null, markerC:null, positionInitialized:false, lengthPct:100, widthPct:100, flip:1, points:[], activeIdx:0 });
+      Object.assign(state, { step:'position', anchor:null, headingDeg:null, markerA:null, markerC:null, liveHeading:0, positionInitialized:false, lengthPct:100, widthPct:100, flip:1, points:[], activeIdx:0 });
       render();
     };
   }
